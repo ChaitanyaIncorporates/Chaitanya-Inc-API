@@ -1,0 +1,19 @@
+# Dependency directories
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+#enviorment variables
+.env
+
+#Test Files
+Test/*.json
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
