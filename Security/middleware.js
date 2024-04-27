@@ -15,7 +15,7 @@ function middleware(app) {
         xssFilter: true
     }));
     app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
-    //app.use(protocolChecker);
+    app.use(protocolChecker);
     app.use(logger);
     app.use(measureRequestDuration);
 
