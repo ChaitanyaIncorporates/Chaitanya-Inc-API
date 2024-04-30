@@ -3,6 +3,12 @@ const protocolChecker = (req, res, next) => {
         return res.redirect(301, `https://${req.hostname}${req.originalUrl}`);
     }
 
+    if (process.env.NODE_ENV === 'development') {
+        res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    }
+
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
