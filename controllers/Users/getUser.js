@@ -12,8 +12,8 @@ async function getUser(req, res) {
         const token = req.headers.authorization.split(' ')[1];
 
         const tokenVerified = await jwtVerifier(token);
-        if (tokenVerified) {
-            return res.status(401).send({ error: `UnAuthorized: ${tokenVerified}` });
+        if (tokenVerified || !token) {
+            return res.status(401).send({ error: "Unauthorized" });
         }
 
         const userData = await fetchUser(id);
@@ -23,7 +23,7 @@ async function getUser(req, res) {
 
         res.status(200).send(userData);
     } catch (error) {
-        logger.error("Error fetching user:", error);
+        logger.error("Error fetching user:", error.message || error);
         res.status(500).send({ error: "Error fetching user" });
     }
 }
@@ -34,8 +34,7 @@ async function fetchUser(id) {
         const userDocSnap = await getDoc(userDocRef);
         return (userDocSnap.exists()) ? userDocSnap.data() : null;
     } catch (error) {
-        logger.error("Error fetching user document:", error);
-        throw new Error("Error fetching user document");
+        throw new Error("Error fetching user document: ", error.message || error);
     }
 }
 

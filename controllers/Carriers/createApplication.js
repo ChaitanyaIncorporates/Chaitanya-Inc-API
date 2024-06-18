@@ -47,7 +47,7 @@ async function addApplication(data) {
     const acknowledgment_id = generateToken(10);
 
     try {
-        await addDoc(collection(db, "changeLogs"), {
+        await addDoc(collection(db, "application"), {
             email: sanitizeString(email),
             acknowledgment_id: sanitizeString(acknowledgment_id),
             full_name: sanitizeString(full_name),

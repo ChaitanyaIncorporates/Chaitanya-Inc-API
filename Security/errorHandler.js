@@ -40,6 +40,7 @@ const uncaughtExceptionHandler = (err, req, res) => {
     });
 
     res.status(500).json({ error: 'An unexpected error occurred. Our team has been notified and will investigate.' });
+    process.exit(1);
 };
 
 const unhandledRejectionHandler = (reason, promise) => {
@@ -57,7 +58,7 @@ const unhandledRejectionHandler = (reason, promise) => {
 };
 
 const notFoundHandler = (req, res) => {
-    logger.error({
+    logger.warn({
         type: 'error',
         timestamp: new Date().toISOString(),
         clientIp: req.ip,
@@ -120,13 +121,13 @@ const genericErrorHandler = (err, req, res, next) => {
     res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
 };
 
-// process.on('uncaughtException', (err) => {
-//     uncaughtExceptionHandler(err, {}, response);
-// });
+process.on('uncaughtException', (err) => {
+    uncaughtExceptionHandler(err, {}, response);
+});
 
-// process.on('unhandledRejection', (reason, promise) => {
-//     unhandledRejectionHandler(reason, promise);
-// });
+process.on('unhandledRejection', (reason, promise) => {
+    unhandledRejectionHandler(reason, promise);
+});
 
 function errorHandlingMiddleware(app) {
     app.use(notFoundHandler);
@@ -136,4 +137,3 @@ function errorHandlingMiddleware(app) {
 }
 
 export default errorHandlingMiddleware;
-export { errorHandler, notFoundHandler, validationErrorHandler, genericErrorHandler };

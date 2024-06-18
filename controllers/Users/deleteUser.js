@@ -14,8 +14,8 @@ async function deleteUser(req, res) {
         const token = req.headers.authorization.split(' ')[1];
 
         const tokenVerified = await jwtVerifier(token);
-        if (!tokenVerified) {
-            return res.status(401).send({ error: `UnAuthorized: ${tokenVerified}` });
+        if (tokenVerified || !token) {
+            return res.status(401).send({ error: "Unauthorized" });
         }
 
         if (!id || typeof id !== 'string') {
@@ -45,8 +45,7 @@ async function deleteUserData(id) {
             throw new Error("User not found");
         }
     } catch (error) {
-        logger.error("Error deleting user data:", error.message || error);
-        throw error;
+        throw new Error(`Error deleting user data: ${error.message || error}`);
     }
 }
 

@@ -4,7 +4,7 @@ import jwtVerifier from "../../Security/jwtVerifier.js";
 import { sanitizeObject } from "../../Security/Sanitization.js";
 import { requestLogger as logger } from '../../Security/logger.js';
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
-import { Timestamp, doc, getFirestore, setDoc, collection, getDocs, getCountFromServer } from "firebase/firestore";
+import { Timestamp, collection, doc, getFirestore, runTransaction} from "firebase/firestore";
 
 const db = getFirestore(app);
 const auth = getAuth(app);
@@ -14,16 +14,19 @@ async function registerUser(req, res) {
         const token = req.headers.authorization.split(' ')[1];
         const tokenVerified = await jwtVerifier(token);
 
-        if (tokenVerified) {
-            return res.status(401).send({ error: `UnAuthorized: ${tokenVerified}` });
+        if (tokenVerified || !token) {
+            return res.status(401).send({ error: "Unauthorized" });
         }
 
-        const userData = validateAndSanitize(req.body);
-        await addUser(userData);
+        const { value, error } = validateAndSanitize(sanitizeObject(req.body));
+        if (error) {
+            return res.status(400).send({ error: "Invalid data provided" });
+        }
 
+        await addUser(value);
         res.status(201).send({ message: 'User created successfully' });
     } catch (error) {
-        logger.error("Error registering user:", error);
+        logger.error("Error registering user:" + error.message || error);
         res.status(500).send({ error: "Error registering user" });
     }
 }
@@ -35,23 +38,25 @@ async function addUser(data) {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        await setDoc(doc(db, "users", user.uid), {
-            uid: user.uid,
-            username: generateUsername(email),
-            email,
-            role: "Employee",
-            OtherUserInfo,
-            EmployeeDetails: {
-                ...EmployeeDetails,
-                EmployeeID: await generateUniqueEmployeeID(),
-                HireDate: Timestamp.now()
-            }
+        await runTransaction(db, async (transaction) => {
+            const EmployeeID = await generateUniqueEmployeeID(transaction);
+            await transaction.set(doc(collection(db, "users"), user.uid), {
+                uid: user.uid,
+                username: generateUsername(email),
+                email,
+                role: "Employee",
+                OtherUserInfo,
+                EmployeeDetails: {
+                    ...EmployeeDetails,
+                    EmployeeID,
+                    HireDate: Timestamp.now()
+                }
+            });
         });
 
         logger.info("Document written for user:", user.uid);
     } catch (error) {
-        logger.error("Error adding user:", error);
-        throw error;
+        throw new Error(error);
     }
 }
 
@@ -70,10 +75,7 @@ function validateAndSanitize(userData) {
         })
     });
 
-    const { error, value } = schema.validate(userData);
-    if (error) throw new Error(error.details[0].message);
-    
-    return sanitizeObject(value);
+    return schema.validate(userData);
 }
 
 function generateUsername(email, maxLength = 20) {
@@ -83,10 +85,20 @@ function generateUsername(email, maxLength = 20) {
     return truncatedUsername;
 }
 
-async function generateUniqueEmployeeID() {
-    const querySnapshot = await getCountFromServer(collection(db, "users"));
-    const employeeID = 'EMP' + String(querySnapshot.data().count + 1).padStart(8, '0');
-    return employeeID;
+async function generateUniqueEmployeeID(transaction) {
+    const counterRef = doc(db, "users", "clientIDCounter");
+    const counterDoc = await transaction.get(counterRef);
+
+    let newCount;
+    if (counterDoc.exists()) {
+        newCount = counterDoc.data().count + 1;
+        transaction.update(counterRef, { count: newCount });
+    } else {
+        newCount = 1;
+        transaction.set(counterRef, { count: 1 });
+    }
+    const clientID = 'EMP' + String(newCount).padStart(8, '0');
+    return clientID;
 }
 
 export default registerUser;

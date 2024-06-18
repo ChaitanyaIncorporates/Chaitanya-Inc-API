@@ -13,8 +13,8 @@ async function getClient(req, res) {
         const token = req.headers.authorization.split(' ')[1];
         const tokenVerified = await jwtVerifier(token);
 
-        if (tokenVerified) {
-            return res.status(401).send({ error: `Unauthorized: ${tokenVerified}` });
+        if (tokenVerified || !token) {
+            return res.status(401).send({ error: "Unauthorized" });
         }
 
         const clientData = await getClientDoc(id);
@@ -24,14 +24,14 @@ async function getClient(req, res) {
 
         res.status(200).send(clientData);
     } catch (error) {
-        logger.error("Error fetching user:", error);
+        logger.error("Error fetching user: "+ error.message || error);
         res.status(500).send({ error: "Error fetching user" });
     }
 }
 
 async function getClientDoc(id) {
-    const ClientDoc = await getDoc(doc(db, "clients", id));
-    return ClientDoc.data();
+    const clientDoc = await getDoc(doc(db, "clients", id));
+    return clientDoc.exists() ? clientDoc.data() : null;
 }
 
 export default getClient;

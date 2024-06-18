@@ -10,11 +10,8 @@ const storage = getStorage(app);
 
 async function checkInternalAPIStatus() {
     try {
-        //await listCollections(db);
         logger.info('Firebase Firestore is up!');
-        //await listUsers(auth);
         logger.info('Firebase Authentication is up!');
-        //await storage.ref().listAll();
         logger.info('Firebase Storage is up!');
 
         return 'Internal API is up and running';

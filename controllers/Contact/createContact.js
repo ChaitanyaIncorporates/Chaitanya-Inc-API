@@ -1,11 +1,9 @@
 import Joi from "joi";
 import app from "../../firebase.js";
-import { getFirestore } from "firebase/firestore";
-import { collection, addDoc } from "firebase/firestore";
 import jwtVerifier from "../../Security/jwtVerifier.js";
-import { sanitizeObject, sanitizeString } from "../../Security/Sanitization.js";
+import { sanitizeObject } from "../../Security/Sanitization.js";
 import { requestLogger as logger } from "../../Security/logger.js";
-
+import { getFirestore, serverTimestamp, collection, addDoc } from "firebase/firestore";
 
 const db = getFirestore(app);
 
@@ -14,19 +12,24 @@ async function createContact(req, res) {
         const token = req.headers.authorization.split(' ')[1];
         const tokenVerified = await jwtVerifier(token);
 
-        if (tokenVerified) {
-            return res.status(401).send({ error: `Unauthorized: ${tokenVerified}` });
+        if (tokenVerified || !token) {
+            return res.status(401).send({ error: "Unauthorized access" });
         }
 
-        const userData = await addContact(sanitizeObject(req.body));
-        res.status(201).send(`Contact added successfully: ${userData}`);
+        const { value, error } = validateContact(sanitizeObject(req.body));
+        if (error) {
+            return res.status(400).send({ error: "Invalid data provided" });
+        }
+        
+        await addContact(value);
+        res.status(201).send(`Contact added successfully: ${value.email}`);
     } catch (error) {
-        console.error("Error registering user:", error);
+        logger.error("Error registering Querry: " + error.message || error);
+        res.status(500).send({ error: "Error registering Querry" });
     }
 }
 
-
-async function addContact(data) {
+function validateContact(data) {
     const schema = Joi.object({
         first_name: Joi.string().min(3).max(30).required(),
         last_name: Joi.string().min(3).max(30).required(),
@@ -37,16 +40,12 @@ async function addContact(data) {
         company: Joi.string().min(3).max(38).required(),
     });
     
-    const { error } = schema.validate(data);
-    if (error) throw new Error(error.details[0].message);
-    const { first_name, last_name, email, phone_no, message, region, company } = data;
+    return schema.validate(data);
+}
 
+async function addContact(data) {
     try {
-        await addDoc(collection(db, "contact"), {
-            first_name, last_name, email, 
-            phone_no, message, region, company
-        });
-        return data.email;
+        await addDoc(collection(db, "contact"), { ...data, timestamp: serverTimestamp()});
     } catch (e) {
         throw new Error(`Error adding user to database: ${e}`);
     }

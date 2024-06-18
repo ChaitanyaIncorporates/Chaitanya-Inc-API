@@ -4,7 +4,7 @@ const serverLogger = winston.createLogger({
     level: 'info',
     format: winston.format.combine(
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-        winston.format.json(),        
+        winston.format.json(),
     ),
     transports: [
         new winston.transports.Console({
@@ -41,6 +41,7 @@ const logger = (req, res, next) => {
         type: 'request',
         timestamp: new Date().toISOString(),
         method: req.method,
+        userIp: req.ip,
         url: req.url,
         headers: req.headers,
         body: req.body,
@@ -56,10 +57,16 @@ const logger = (req, res, next) => {
                 headers: res.getHeaders(),
             };
             const combinedLog = { ...startLog, ...finishLog };
-            serverLogger.child({ status: res.statusCode, processingTime: processingTime + 'ms', clientIp: req.ip }).info(combinedLog); // Removed unnecessary parentheses
+            if (res.statusCode >= 500) {
+                serverLogger.child({ status: res.statusCode, processingTime: processingTime + 'ms', clientIp: req.ip, }).error(combinedLog);
+            } else if (res.statusCode >= 400) {
+                serverLogger.child({ status: res.statusCode, processingTime: processingTime + 'ms', clientIp: req.ip, }).warn(combinedLog);
+            } else {
+                serverLogger.child({ status: res.statusCode, processingTime: processingTime + 'ms', clientIp: req.ip, }).info(combinedLog);
+            }
         });
     } catch (error) {
-        console.error('Error in logger middleware:', error.message);
+        serverLogger.error(`Error in logger: ${error.message}`);
     }
 
     next();

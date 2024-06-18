@@ -13,7 +13,7 @@ async function updateUser(req, res) {
         const tokenVerified = await jwtVerifier(token);
 
         if (tokenVerified) {
-            return res.status(401).send({ error: `UnAuthorized: ${tokenVerified}` });
+            return res.status(401).send({ error: "Unauthorized" });
         }
 
         if (!id || typeof id !== 'string') {
@@ -23,6 +23,7 @@ async function updateUser(req, res) {
         const updatedData = sanitizeObject(req.body);
         await updateDataUser(id, updatedData);
 
+        logger.info(`User with ID: ${id} updated successfully`);
         res.status(200).send(`User with ID: ${id} updated successfully`);
     } catch (error) {
         logger.error("Error updating user:", error.message || error);
@@ -31,12 +32,11 @@ async function updateUser(req, res) {
 }
 
 async function updateDataUser(id, data) {
-    const userRef = doc(db, "users", id);
     try {
+        const userRef = doc(db, "users", id);
         await setDoc(userRef, data, { merge: true });
     } catch (error) {
-        logger.error("Error updating user data:", error.message || error);
-        throw new Error("Error updating user data");
+        throw new Error("Error updating user data: ", error.message || error);
     }
 }
 

@@ -12,6 +12,7 @@
   "author": "Shlok Chaitanya",
   "license": "AGPL-3.0-only",
   "dependencies": {
+    "cors": "^2.8.5",
     "dompurify": "^3.0.10",
     "express": "^4.18.3",
     "express-rate-limit": "^7.2.0",

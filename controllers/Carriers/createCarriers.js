@@ -3,7 +3,7 @@ import app from "../../firebase.js";
 import jwtVerifier from '../../Security/jwtVerifier.js'
 import { sanitizeObject } from "../../Security/Sanitization.js";
 import { requestLogger as logger } from "../../Security/logger.js";
-import { getFirestore, collection, addDoc, doc } from "firebase/firestore";
+import { getFirestore, collection, addDoc, doc, serverTimestamp } from "firebase/firestore";
 
 const db = getFirestore(app);
 
@@ -12,20 +12,20 @@ async function createCarrier(req, res) {
         const token = req.headers.authorization.split(' ')[1];
         const tokenVerified = await jwtVerifier(token);
 
-        if (tokenVerified) {
-            return res.status(401).send({ error: `Unauthorized: ${tokenVerified}` });
+        if (tokenVerified || !token) {
+            return res.status(401).send({ error: "Unauthorized" });
         }
 
         const { error, value } = validateCarrier(req.body);
         if (error) {
-            return res.status(400).send({ error: error.details[0].message });
+            return res.status(400).send({ error: "Invalid data provided" });
         }
 
         await addCarrier(sanitizeObject(value));
         res.status(201).send("Job Position created successfully!");
     } catch (error) {
-        logger.error("Error creating Job:", error);
-        res.status(500).send({ error: "Error creating Job" });
+        logger.error("Error creating Job: " + error.message || error);
+        res.status(500).send({ error: "Internal server error" });
     }
 }
 
@@ -34,15 +34,14 @@ function validateCarrier(data) {
         title: Joi.string().min(3).max(255).required(),
         sub_title: Joi.string().min(3).max(255).required(),
         location: Joi.string().min(3).max(255).required(),
-        posted_date: Joi.date().required(),
-        department: Joi.string().min(3).required(),
+        department: Joi.string().min(3).max(51).required(),
         sub_description: Joi.string().min(3).required(),
-        posted_by: Joi.string().max(28).required(),
+        posted_by: Joi.string().min(3).max(28).required(),
         description: Joi.object({
-            main_body: Joi.string().min(3).required(),
-            work: Joi.string().min(3).required(),
+            main_body: Joi.array().items(Joi.string().min(3).required()),
+            work: Joi.array().items(Joi.string().min(3).required()),
             skills: Joi.string().min(3).required(),
-            amenities: Joi.string().min(3).required(),
+            amenities: Joi.array().items(Joi.string().min(3).required()),
         }),
     });
 
@@ -50,18 +49,18 @@ function validateCarrier(data) {
 }
 
 async function addCarrier(data) {
-    const { title, sub_title, location, posted_date, department, sub_description, posted_by, description } = data;
+    const { title, sub_title, location, department, sub_description, posted_by, description } = data;
 
     try {
         const carrierRef = collection(db, "carriers");
         const carrier = await addDoc(carrierRef, {
-            title, sub_title, location, posted_date, 
+            title, sub_title, location, posted_date: serverTimestamp(), 
             description, department, sub_description, 
             posted_by: doc(db, 'users', posted_by)
         });
-        logger.info("Carrier created with ID:", carrier.id);
+        logger.info("Carrier created with ID:" + carrier.id);
     } catch (e) {
-        throw new Error(e.message);
+        throw new Error("Failed to create carrier");
     }
 };
 
