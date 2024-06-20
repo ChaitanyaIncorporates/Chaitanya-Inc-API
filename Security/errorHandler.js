@@ -130,7 +130,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 function errorHandlingMiddleware(app) {
-    app.use(notFoundHandler);
+
     app.use(validationErrorHandler);
     app.use(genericErrorHandler);
     app.use(errorHandler);

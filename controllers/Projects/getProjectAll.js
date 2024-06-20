@@ -17,14 +17,14 @@ async function getProjectAll(req, res) {
         const userData = await getProjects();
         res.status(201).send(userData);
     } catch (error) {
-        logger.error("Error fetching user:", error.message || error);
+        logger.error("Error fetching user:"+ error.message || error);
         res.status(500).send({ error: "Error fetching user" });
     }
 }
 
-function getProjects() {
+async function getProjects() {
     try {
-        const querySnapshot = getDocs(collection(db, "projects"));
+        const querySnapshot = await getDocs(collection(db, "projects"));
         return querySnapshot.docs.map(doc => ({ id: doc.id, data: doc.data() }));
     } catch (error) {
         throw new Error(`Error fetching user: ${error.message || error}`);
